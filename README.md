@@ -43,6 +43,11 @@ python manage.py seed_data
 
 # 7. Chạy server
 python manage.py runserver
+# 8. Cài ollama
+irm https://ollama.com/install.ps1 | iex
+# 9. Cài phiên bản ollama3.2
+Mở cmd chạy
+ollama run llama3.2
 ```
 
 Truy cập: http://127.0.0.1:8000/
