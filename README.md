@@ -16,6 +16,7 @@ Website bán cây cảnh, sen đá, xương rồng xây dựng bằng Django.
 
 - Python 3.10+
 - Django 5+
+- llama3.2 (AI)
 
 ## Cài đặt và chạy
 
