@@ -51,7 +51,7 @@ Truy cập: http://127.0.0.1:8000/
 
 | Vai trò | Username | Password |
 |---------|----------|----------|
-| Admin   | admin    | admin123 |
+| Admin   | admin    | luchieu21 |
 | User    | user1    | admin123 |
 
 ## Cấu trúc dự án
