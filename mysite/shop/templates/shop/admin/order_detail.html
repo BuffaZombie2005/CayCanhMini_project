@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block title %}Đơn hàng {{ order.id|truncatechars:8 }} - Cây Cảnh Xanh{% endblock %}
+{% block content %}
+<div class="container">
+  <h2>Chi tiết đơn hàng</h2>
+  <p>Mã: <strong>{{ order.id }}</strong> | Khách: {{ order.user.username }} | Ngày: {{ order.created_at|date:"d/m/Y H:i" }}</p>
+  <form method="post" class="mb-4">
+    {% csrf_token %}
+    <div class="d-flex align-items-center gap-2">
+      <label class="form-label mb-0">Trạng thái:</label>
+      {{ form.status }}
+      <button type="submit" class="btn btn-success">Cập nhật</button>
+    </div>
+  </form>
+  <table class="table">
+    <thead><tr><th>Sản phẩm</th><th>Đơn giá</th><th>SL</th><th>Thành tiền</th></tr></thead>
+    <tbody>
+      {% for item in order.items.all %}
+      <tr><td>{{ item.product_name }}</td><td>{{ item.price|floatformat:0 }} ₫</td><td>{{ item.quantity }}</td><td>{{ item.subtotal|floatformat:0 }} ₫</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="fw-bold">Tổng: {{ order.total_amount|floatformat:0 }} ₫</p>
+  <p><strong>Địa chỉ giao:</strong> {{ order.shipping_address }} | <strong>Điện thoại:</strong> {{ order.shipping_phone }}</p>
+  <a href="{% url 'shop:order_admin_list' %}" class="btn btn-outline-secondary">Quay lại</a>
+</div>
+{% endblock %}

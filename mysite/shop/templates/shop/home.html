@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% block title %}Trang chủ - Cây Cảnh Xanh{% endblock %}
+{% block content %}
+<div class="container">
+  <!-- Hero -->
+  <div class="bg-success bg-opacity-10 rounded-3 p-5 mb-5 text-center">
+    <h1 class="display-5 fw-bold text-success">Chào mừng đến Cây Cảnh Xanh</h1>
+    <p class="lead">Khám phá bộ sưu tập cây cảnh, sen đá và xương rồng đa dạng.</p>
+    <a href="{% url 'shop:product_list' %}" class="btn btn-success btn-lg">Xem sản phẩm</a>
+  </div>
+
+  <!-- Categories -->
+  {% if categories %}
+  <h4 class="mb-3">Danh mục</h4>
+  <div class="row g-3 mb-5">
+    {% for cat in categories %}
+    <div class="col-6 col-md-4 col-lg-2">
+      <a href="{% url 'shop:product_list' %}?category={{ cat.slug }}" class="text-decoration-none">
+        <div class="card h-100 border-success border-opacity-25">
+          <div class="card-body text-center">
+            <i class="bi bi-flower2 fs-2 text-success"></i>
+            <p class="mb-0 small fw-semibold">{{ cat.name }}</p>
+          </div>
+        </div>
+      </a>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Featured products -->
+  <h4 class="mb-3">Sản phẩm nổi bật</h4>
+  <div class="row g-4">
+    {% for p in products %}
+    <div class="col-6 col-md-4 col-lg-3">
+      <div class="card h-100">
+        <a href="{% url 'shop:product_detail' p.slug %}">
+          {% if p.get_image_url %}
+          <img src="{{ p.get_image_url }}" class="card-img-top" alt="{{ p.name }}">
+          {% else %}
+          <div class="card-img-top bg-light d-flex align-items-center justify-content-center">
+            <i class="bi bi-flower2 text-muted display-4"></i>
+          </div>
+          {% endif %}
+        </a>
+        <div class="card-body">
+          <h6 class="card-title"><a href="{% url 'shop:product_detail' p.slug %}" class="text-decoration-none text-dark">{{ p.name }}</a></h6>
+          <p class="product-price mb-2">{{ p.price|floatformat:0 }} ₫</p>
+          {% if request.user.is_authenticated %}
+          <form action="{% url 'shop:add_to_cart' p.id %}" method="post" class="d-flex gap-1">
+            {% csrf_token %}
+            <input type="number" name="quantity" value="1" min="1" max="{{ p.stock }}" class="form-control form-control-sm" style="width:60px">
+            <button type="submit" class="btn btn-success btn-sm" {% if not p.in_stock %}disabled{% endif %}>
+              <i class="bi bi-cart-plus"></i>
+            </button>
+          </form>
+          {% else %}
+          <p class="small text-muted mb-1">Đăng ký/đăng nhập để thêm vào giỏ.</p>
+          <div class="d-flex gap-1">
+            <a href="{% url 'shop:register' %}?next={{ request.get_full_path|urlencode }}" class="btn btn-outline-success btn-sm">Đăng ký</a>
+            <a href="{% url 'shop:login' %}?next={{ request.get_full_path|urlencode }}" class="btn btn-light btn-sm border">Đăng nhập</a>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+      <p class="text-muted">Chưa có sản phẩm. Vui lòng thêm sản phẩm qua trang quản trị.</p>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

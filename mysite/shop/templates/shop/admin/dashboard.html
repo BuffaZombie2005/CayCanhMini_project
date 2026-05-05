@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block title %}Quản trị - Cây Cảnh Xanh{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <h2 class="mb-4">Dashboard quản trị</h2>
+  <div class="row g-3 mb-4">
+    <div class="col-md-3"><div class="card"><div class="card-body"><h5>Sản phẩm</h5><p class="fs-3 mb-0">{{ stats.total_products }}</p></div></div></div>
+    <div class="col-md-3"><div class="card"><div class="card-body"><h5>Đơn hàng</h5><p class="fs-3 mb-0">{{ stats.total_orders }}</p></div></div></div>
+    <div class="col-md-3"><div class="card"><div class="card-body"><h5>Chờ xử lý</h5><p class="fs-3 mb-0">{{ stats.pending_orders }}</p></div></div></div>
+    <div class="col-md-3"><div class="card"><div class="card-body"><h5>Doanh thu</h5><p class="fs-3 mb-0">{{ stats.total_revenue|floatformat:0 }} ₫</p></div></div></div>
+  </div>
+  <div class="row">
+    <div class="col-lg-8"><div class="card"><div class="card-body"><h5>Đơn hàng 7 ngày gần nhất</h5><canvas id="chartOrders" height="120"></canvas></div></div></div>
+    <div class="col-lg-4"><div class="card"><div class="card-body"><h5>Sản phẩm theo danh mục</h5><canvas id="chartCategories" height="150"></canvas></div></div></div>
+  </div>
+  <div class="mt-4">
+    <a href="{% url 'shop:product_admin_list' %}" class="btn btn-success me-2">Quản lý sản phẩm</a>
+    <a href="{% url 'shop:category_admin_list' %}" class="btn btn-outline-success me-2">Quản lý danh mục</a>
+    <a href="{% url 'shop:order_admin_list' %}" class="btn btn-outline-success">Quản lý đơn hàng</a>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+  new Chart(document.getElementById('chartOrders'), {
+    type: 'bar',
+    data: {
+      labels: {{ chart_days|safe }},
+      datasets: [{ label: 'Đơn hàng', data: {{ chart_orders|safe }}, backgroundColor: 'rgba(45,90,39,0.7)' }]
+    },
+    options: { responsive: true, scales: { y: { beginAtZero: true } } }
+  });
+  new Chart(document.getElementById('chartCategories'), {
+    type: 'doughnut',
+    data: {
+      labels: {{ chart_cat_labels|safe }},
+      datasets: [{ data: {{ chart_cat_counts|safe }}, backgroundColor: ['#2d5a27','#4a7c43','#8bc34a','#c5e1a5','#e8f5e9'] }]
+    },
+    options: { responsive: true }
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,322 @@
+{% extends 'base.html' %}
+{% block title %}Trợ lý AI — {{ block.super }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  .chat-wrap { max-width: 720px; margin: 0 auto; }
+  .chat-log {
+    height: min(420px, 55vh);
+    overflow-y: auto;
+    padding: 1rem;
+    background: rgba(255,255,255,.92);
+    border-radius: .5rem;
+    border: 1px solid rgba(45,90,39,.15);
+    font-size: .95rem;
+  }
+  .chat-msg { margin-bottom: .75rem; line-height: 1.45; }
+  .chat-msg.user { text-align: right; }
+  .chat-msg.user .bubble { background: rgba(139,195,74,.25); margin-left: 2rem; }
+  .chat-msg.assistant .bubble { background: rgba(45,90,39,.08); margin-right: 2rem; }
+  .bubble {
+    display: inline-block;
+    padding: .5rem .75rem;
+    border-radius: .75rem;
+    text-align: left;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .chat-meta { font-size: .78rem; color: #64748b; }
+  .chat-suggest-row {
+    margin: .35rem 2rem 0 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: .35rem;
+  }
+  .chat-suggest-pill {
+    font-size: .8rem;
+    padding: .2rem .5rem;
+    border-radius: .35rem;
+    background: rgba(45,90,39,.09);
+    border: 1px solid rgba(45,90,39,.18);
+    text-decoration: none;
+    color: #1f3d1a;
+    display: inline-block;
+    max-width: 100%;
+  }
+  .chat-suggest-pill:hover { background: rgba(139,195,74,.35); color: #142b12; }
+  .chat-suggest-pill .price { font-weight: 600; color: #2d5a27; }
+  .chat-history-actions {
+    margin-top: .5rem;
+    font-size: .8rem;
+  }
+  .chat-loading-msg .bubble {
+    background: rgba(45,90,39,.1);
+    color: #3d5338;
+    font-size: .9rem;
+    min-width: 8rem;
+  }
+  .chat-loading-heading {
+    display: block;
+    font-style: italic;
+    margin-bottom: .35rem;
+  }
+  .chat-loading-dots {
+    display: inline-flex;
+    gap: .2rem;
+    align-items: center;
+    vertical-align: middle;
+  }
+  .chat-loading-dots span {
+    width: .45rem;
+    height: .45rem;
+    border-radius: 50%;
+    background: #5a8352;
+    animation: chatDotBounce .9s infinite ease-in-out both;
+    opacity: .35;
+  }
+  .chat-loading-dots span:nth-child(2) { animation-delay: .15s; }
+  .chat-loading-dots span:nth-child(3) { animation-delay: .3s; }
+  @keyframes chatDotBounce {
+    0%, 80%, 100% { transform: translateY(0); opacity: .3; }
+    40% { transform: translateY(-5px); opacity: 1; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container chat-wrap">
+  <h1 class="h4 mb-2"><i class="bi bi-robot"></i> Trợ lý AI (local)</h1>
+  <p class="small text-muted mb-3 chat-meta">
+    Gợi ý chỉ dựa trên <strong>sản phẩm đang bán trong hệ thống</strong> (ưu tiên trùng từ khóa của bạn).
+    Model AI: <code>{{ llm_model }}</code> (Ollama chạy trên máy). Cấu hình trong <code>.env</code> nếu cần.
+    <br>
+    <span class="text-secondary">Cuộc trò chuyện được lưu trong trình duyệt của bạn (kéo vào đây sẽ thấy lại sau khi rời trang).</span>
+  </p>
+  <div class="card">
+    <div class="card-body">
+      <div id="chat-log" class="chat-log mb-3" aria-live="polite"></div>
+      <form id="chat-form" class="d-flex gap-2">
+        {% csrf_token %}
+        <input type="text" id="chat-input" class="form-control" maxlength="4000"
+               placeholder="Ví dụ: gợi ý sen đá dưới 200k, cây ít nắng..."
+               autocomplete="off" required>
+        <button type="submit" class="btn btn-primary shrink-0" id="chat-send">
+          Gửi
+        </button>
+      </form>
+      <div class="chat-history-actions">
+        <button type="button" class="btn btn-link btn-sm text-secondary p-0" id="chat-clear-history">
+          Xóa lịch sử trên trình duyệt
+        </button>
+      </div>
+      <p class="small text-danger mt-2 mb-0 d-none" id="chat-error"></p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  const CHAT_HISTORY_KEY = 'shop_caycanhxanh_chat_history_v1';
+  const MAX_MESSAGES = 80;
+
+  const logEl = document.getElementById('chat-log');
+  const form = document.getElementById('chat-form');
+  const input = document.getElementById('chat-input');
+  const sendBtn = document.getElementById('chat-send');
+  const errEl = document.getElementById('chat-error');
+  const clearBtn = document.getElementById('chat-clear-history');
+  const csrfEl = document.querySelector('[name=csrfmiddlewaretoken]');
+  const history = []; /* { role, content, suggested_products? } */
+
+  function persistHistory() {
+    try {
+      var slim = history.map(function(h) {
+        var o = { role: h.role, content: h.content };
+        if (h.role === 'assistant' && Array.isArray(h.suggested_products) && h.suggested_products.length) {
+          o.suggested_products = h.suggested_products;
+        }
+        return o;
+      }).slice(-MAX_MESSAGES);
+      localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(slim));
+    } catch (err) {
+      /* private mode hoặc hết dung lượng — bỏ qua */
+    }
+  }
+
+  function loadPersistedHistory() {
+    var raw;
+    try {
+      raw = localStorage.getItem(CHAT_HISTORY_KEY);
+    } catch (e) { return; }
+    if (!raw) return;
+    var arr;
+    try { arr = JSON.parse(raw); } catch (e) { return; }
+    if (!Array.isArray(arr) || arr.length === 0) return;
+
+    arr.slice(-MAX_MESSAGES).forEach(function(item) {
+      if (!item || (item.role !== 'user' && item.role !== 'assistant')) return;
+      var c = typeof item.content === 'string' ? item.content.trim() : '';
+      if (!c) return;
+
+      if (item.role === 'user') {
+        history.push({ role: 'user', content: item.content });
+        appendBubble('user', item.content, null);
+      } else {
+        var sug = Array.isArray(item.suggested_products) ? item.suggested_products : [];
+        history.push({
+          role: 'assistant',
+          content: item.content,
+          suggested_products: sug,
+        });
+        appendBubble('assistant', item.content, sug);
+      }
+    });
+  }
+
+  function clearPersistedHistory() {
+    history.length = 0;
+    logEl.innerHTML = '';
+    try { localStorage.removeItem(CHAT_HISTORY_KEY); } catch (e) {}
+    showErr('');
+  }
+
+  function appendThinkingBubble() {
+    const wrap = document.createElement('div');
+    wrap.className = 'chat-msg assistant chat-loading-msg';
+    wrap.setAttribute('aria-busy', 'true');
+
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+
+    const head = document.createElement('span');
+    head.className = 'chat-loading-heading';
+    head.textContent = 'Đang suy nghĩ…';
+
+    const dots = document.createElement('span');
+    dots.className = 'chat-loading-dots';
+    dots.setAttribute('aria-hidden', 'true');
+    [0, 1, 2].forEach(function() {
+      dots.appendChild(document.createElement('span'));
+    });
+
+    bubble.appendChild(head);
+    bubble.appendChild(dots);
+    wrap.appendChild(bubble);
+    logEl.appendChild(wrap);
+    logEl.scrollTop = logEl.scrollHeight;
+    return wrap;
+  }
+
+  function removeThinkingBubble(node) {
+    if (node && node.parentNode) node.remove();
+  }
+
+  function appendBubble(role, text, suggestedProducts) {
+    const wrap = document.createElement('div');
+    wrap.className = 'chat-msg ' + role;
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.textContent = text;
+    wrap.appendChild(bubble);
+
+    if (role === 'assistant' && suggestedProducts && suggestedProducts.length) {
+      const pills = document.createElement('div');
+      pills.className = 'chat-suggest-row';
+      suggestedProducts.forEach(function(p) {
+        const a = document.createElement('a');
+        a.className = 'chat-suggest-pill';
+        a.href = p.url || '#';
+        var priceNum = Number(p.price) || 0;
+        var priceStr;
+        try { priceStr = priceNum.toLocaleString('vi-VN') + 'đ'; }
+        catch (e) { priceStr = String(priceNum) + 'đ'; }
+        var stockLbl = (Number(p.stock) > 0) ? (' · còn ' + p.stock) : ' · tạm hết';
+        var nm = document.createElement('strong');
+        nm.className = 'price';
+        nm.textContent = p.name || 'Sản phẩm';
+        a.appendChild(nm);
+        a.appendChild(document.createTextNode(' · ' + priceStr + stockLbl + ' ›'));
+        pills.appendChild(a);
+      });
+      wrap.appendChild(pills);
+    }
+
+    logEl.appendChild(wrap);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function showErr(msg) {
+    errEl.textContent = msg;
+    errEl.classList.toggle('d-none', !msg);
+  }
+
+  loadPersistedHistory();
+
+  if (clearBtn) {
+    clearBtn.addEventListener('click', function() {
+      if (history.length && !confirm('Xóa toàn bộ lịch sử chat trên trình duyệt?')) return;
+      clearPersistedHistory();
+      input.focus();
+    });
+  }
+
+  form.addEventListener('submit', async function(ev) {
+    ev.preventDefault();
+    const msg = input.value.trim();
+    if (!msg) return;
+
+    showErr('');
+    appendBubble('user', msg, null);
+    input.value = '';
+
+    history.push({ role: 'user', content: msg });
+    persistHistory();
+    sendBtn.disabled = true;
+
+    let thinkingWrap = appendThinkingBubble();
+
+    try {
+      const resp = await fetch('{% url "shop:chat_assistant_api" %}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfEl ? csrfEl.value : ''
+        },
+        body: JSON.stringify({ message: msg, history: history.slice(0, -1) })
+      });
+      const data = await resp.json().catch(function() { return {}; });
+      if (!resp.ok) {
+        history.pop(); /* không lưu user nếu lỗi */
+        persistHistory();
+        showErr(data.error || 'Lỗi không xác định.');
+        return;
+      }
+      const reply = (data.reply || '').trim();
+      var suggested = Array.isArray(data.suggested_products) ? data.suggested_products : [];
+      appendBubble(
+        'assistant',
+        reply || '—',
+        suggested
+      );
+      history.push({
+        role: 'assistant',
+        content: reply,
+        suggested_products: suggested,
+      });
+      persistHistory();
+    } catch (e) {
+      history.pop();
+      persistHistory();
+      showErr('Lỗi mạng hoặc trình duyệt: ' + (e.message || ''));
+    } finally {
+      removeThinkingBubble(thinkingWrap);
+      thinkingWrap = null;
+      sendBtn.disabled = false;
+      input.focus();
+    }
+  });
+})();
+</script>
+{% endblock %}

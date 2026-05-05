@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% block title %}Quản lý sản phẩm - Cây Cảnh Xanh{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <h2 class="mb-4">Quản lý sản phẩm</h2>
+  <div class="d-flex justify-content-between mb-4">
+    <form method="get" class="d-flex gap-2">
+      <input type="text" name="q" value="{{ search_q }}" class="form-control" placeholder="Tìm kiếm..." style="width:200px">
+      <select name="status" class="form-select" style="width:150px">
+        <option value="">Tất cả</option>
+        <option value="active" {% if filter_status == 'active' %}selected{% endif %}>Đang bán</option>
+        <option value="draft" {% if filter_status == 'draft' %}selected{% endif %}>Nháp</option>
+        <option value="inactive" {% if filter_status == 'inactive' %}selected{% endif %}>Ngừng bán</option>
+      </select>
+      <button type="submit" class="btn btn-outline-success">Lọc</button>
+    </form>
+    <a href="{% url 'shop:product_admin_create' %}" class="btn btn-success">+ Thêm sản phẩm</a>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover">
+      <thead><tr><th>Ảnh</th><th>Tên</th><th>Danh mục</th><th>Giá</th><th>Tồn</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
+      <tbody>
+        {% for p in products %}
+        <tr>
+          <td>{% if p.get_image_url %}<img src="{{ p.get_image_url }}" alt="" style="height:40px">{% else %}-{% endif %}</td>
+          <td>{{ p.name }}</td>
+          <td>{{ p.category.name }}</td>
+          <td>{{ p.price|floatformat:0 }} ₫</td>
+          <td>{{ p.stock }}</td>
+          <td><span class="badge bg-{% if p.status == 'active' %}success{% elif p.status == 'draft' %}secondary{% else %}danger{% endif %}">{{ p.get_status_display }}</span></td>
+          <td>
+            <a href="{% url 'shop:product_admin_edit' p.pk %}" class="btn btn-sm btn-outline-primary">Sửa</a>
+            <form action="{% url 'shop:product_admin_delete' p.pk %}" method="post" class="d-inline" onsubmit="return confirm('Xóa sản phẩm này?')">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-sm btn-outline-danger">Xóa</button>
+            </form>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="text-muted">Chưa có sản phẩm.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

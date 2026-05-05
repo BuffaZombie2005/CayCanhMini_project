@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% block title %}Sản phẩm - Cây Cảnh Xanh{% endblock %}
+{% block content %}
+<div class="container">
+  <h2 class="mb-4">Danh sách sản phẩm</h2>
+
+  <!-- Search, Filter, Sort -->
+  <form method="get" class="row g-3 mb-4">
+    <div class="col-md-4">
+      <input type="text" name="q" value="{{ search_q }}" class="form-control" placeholder="Tìm kiếm...">
+    </div>
+    <div class="col-md-2">
+      <select name="category" class="form-select">
+        <option value="">Tất cả danh mục</option>
+        {% for c in categories %}
+        <option value="{{ c.slug }}" {% if filter_category == c.slug %}selected{% endif %}>{{ c.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <select name="sort" class="form-select">
+        <option value="newest" {% if sort == 'newest' %}selected{% endif %}>Mới nhất</option>
+        <option value="price_asc" {% if sort == 'price_asc' %}selected{% endif %}>Giá tăng dần</option>
+        <option value="price_desc" {% if sort == 'price_desc' %}selected{% endif %}>Giá giảm dần</option>
+        <option value="name" {% if sort == 'name' %}selected{% endif %}>Tên A-Z</option>
+      </select>
+    </div>
+    <div class="col-md-2">
+      <input type="number" name="min_price" value="{{ request.GET.min_price }}" class="form-control" placeholder="Giá từ">
+    </div>
+    <div class="col-md-2">
+      <input type="number" name="max_price" value="{{ request.GET.max_price }}" class="form-control" placeholder="Giá đến">
+    </div>
+    <div class="col-12 col-md-auto">
+      <button type="submit" class="btn btn-success">Lọc</button>
+    </div>
+  </form>
+
+  <div class="row g-4">
+    {% for p in products %}
+    <div class="col-6 col-md-4 col-lg-3">
+      <div class="card h-100">
+        <a href="{% url 'shop:product_detail' p.slug %}">
+          {% if p.get_image_url %}
+          <img src="{{ p.get_image_url }}" class="card-img-top" alt="{{ p.name }}">
+          {% else %}
+          <div class="card-img-top bg-light d-flex align-items-center justify-content-center">
+            <i class="bi bi-flower2 text-muted display-4"></i>
+          </div>
+          {% endif %}
+        </a>
+        <div class="card-body">
+          <h6 class="card-title"><a href="{% url 'shop:product_detail' p.slug %}" class="text-decoration-none text-dark">{{ p.name }}</a></h6>
+          <p class="product-price mb-2">{{ p.price|floatformat:0 }} ₫</p>
+          {% if request.user.is_authenticated %}
+          <form action="{% url 'shop:add_to_cart' p.id %}" method="post" class="d-flex gap-1">
+            {% csrf_token %}
+            <input type="number" name="quantity" value="1" min="1" max="{{ p.stock }}" class="form-control form-control-sm" style="width:60px">
+            <button type="submit" class="btn btn-success btn-sm" {% if not p.in_stock %}disabled{% endif %}><i class="bi bi-cart-plus"></i></button>
+          </form>
+          {% else %}
+          <p class="small text-muted mb-1">Đăng ký/đăng nhập để thêm vào giỏ.</p>
+          <div class="d-flex gap-1">
+            <a href="{% url 'shop:register' %}?next={{ request.get_full_path|urlencode }}" class="btn btn-outline-success btn-sm">Đăng ký</a>
+            <a href="{% url 'shop:login' %}?next={{ request.get_full_path|urlencode }}" class="btn btn-light btn-sm border">Đăng nhập</a>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% empty %}
+    <div class="col-12"><p class="text-muted">Không tìm thấy sản phẩm.</p></div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

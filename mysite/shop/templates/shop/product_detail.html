@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% block title %}{{ product.name }} - Cây Cảnh Xanh{% endblock %}
+{% block content %}
+<div class="container">
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{% url 'shop:home' %}">Trang chủ</a></li>
+      <li class="breadcrumb-item"><a href="{% url 'shop:product_list' %}">Sản phẩm</a></li>
+      <li class="breadcrumb-item active">{{ product.name }}</li>
+    </ol>
+  </nav>
+  <div class="row">
+    <div class="col-md-5">
+      {% if product.get_image_url %}
+      <img src="{{ product.get_image_url }}" class="img-fluid rounded" alt="{{ product.name }}">
+      {% else %}
+      <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height:300px">
+        <i class="bi bi-flower2 text-muted display-1"></i>
+      </div>
+      {% endif %}
+    </div>
+    <div class="col-md-7">
+      <h2>{{ product.name }}</h2>
+      <p class="product-price fs-4">{{ product.price|floatformat:0 }} ₫</p>
+      <p class="text-muted">Danh mục: {{ product.category.name }}</p>
+      <p>{{ product.description }}</p>
+      <p>
+        {% if product.in_stock %}
+        <span class="badge bg-success">Còn hàng ({{ product.stock }})</span>
+        {% else %}
+        <span class="badge bg-danger">Hết hàng</span>
+        {% endif %}
+      </p>
+      {% if request.user.is_authenticated %}
+      <form action="{% url 'shop:add_to_cart' product.id %}" method="post" class="d-flex align-items-center gap-2">
+        {% csrf_token %}
+        <input type="number" name="quantity" value="1" min="1" max="{{ product.stock }}" class="form-control" style="width:100px">
+        <button type="submit" class="btn btn-success" {% if not product.in_stock %}disabled{% endif %}>
+          <i class="bi bi-cart-plus"></i> Thêm vào giỏ
+        </button>
+      </form>
+      {% else %}
+      <div class="alert alert-warning py-2 px-3 mb-2">
+        Vui lòng đăng ký hoặc đăng nhập trước khi thêm sản phẩm vào giỏ hàng.
+      </div>
+      <div class="d-flex gap-2">
+        <a href="{% url 'shop:register' %}?next={{ request.get_full_path|urlencode }}" class="btn btn-success">Đăng ký ngay</a>
+        <a href="{% url 'shop:login' %}?next={{ request.get_full_path|urlencode }}" class="btn btn-outline-secondary">Đăng nhập</a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

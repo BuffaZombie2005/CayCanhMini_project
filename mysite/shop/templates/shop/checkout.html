@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block title %}Thanh toán - Cây Cảnh Xanh{% endblock %}
+{% block content %}
+<div class="container">
+  <h2 class="mb-4">Thanh toán</h2>
+  <div class="row">
+    <div class="col-lg-7">
+      <form method="post">
+        {% csrf_token %}
+        <div class="mb-3">
+          <label class="form-label">Địa chỉ giao hàng *</label>
+          {{ form.shipping_address }}
+          {% if form.shipping_address.errors %}<div class="text-danger small">{{ form.shipping_address.errors.0 }}</div>{% endif %}
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Số điện thoại *</label>
+          <input type="text" name="shipping_phone" value="{{ form.shipping_phone.value|default:'' }}" class="form-control" maxlength="20">
+          {% if form.shipping_phone.errors %}<div class="text-danger small">{{ form.shipping_phone.errors.0 }}</div>{% endif %}
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Ghi chú</label>
+          {{ form.note }}
+        </div>
+        <button type="submit" class="btn btn-success btn-lg">Đặt hàng</button>
+      </form>
+    </div>
+    <div class="col-lg-5">
+      <div class="card">
+        <div class="card-header">Đơn hàng</div>
+        <div class="card-body">
+          {% for item in cart.items.all %}
+          <p class="mb-1">{{ item.product.name }} x {{ item.quantity }} = {{ item.subtotal|floatformat:0 }} ₫</p>
+          {% endfor %}
+          <hr>
+          <p class="fw-bold fs-5">Tổng: {{ cart.get_total|floatformat:0 }} ₫</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
